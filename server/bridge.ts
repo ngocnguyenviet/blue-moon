@@ -1,0 +1,5 @@
+import {createHmac,randomBytes,timingSafeEqual} from 'node:crypto';
+export type Envelope={payload:string;timestamp:number;nonce:string;signature:string};
+const signature=(payload:string,timestamp:number,nonce:string,secret:string)=>createHmac('sha256',secret).update(`${timestamp}\n${nonce}\n${payload}`).digest('hex');
+export function signEnvelope(data:object,secret:string,timestamp=Date.now(),nonce=randomBytes(16).toString('hex')):Envelope{const payload=JSON.stringify(data);return{payload,timestamp,nonce,signature:signature(payload,timestamp,nonce,secret)};}
+export function verifyEnvelope(e:Envelope,secret:string,now=Date.now()){if(!secret||typeof e?.payload!=='string'||e.payload.length>200000||typeof e.nonce!=='string'||e.nonce.length<5||e.nonce.length>128||!Number.isSafeInteger(e.timestamp)||Math.abs(now-e.timestamp)>300000||!/^[a-f0-9]{64}$/.test(e.signature||''))return false;return timingSafeEqual(Buffer.from(e.signature,'hex'),Buffer.from(signature(e.payload,e.timestamp,e.nonce,secret),'hex'));}

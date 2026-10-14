@@ -1,0 +1,232 @@
+generator client {
+ provider = "prisma-client-js"
+}
+datasource db {
+ provider = "postgresql"
+ url = env("DATABASE_URL")
+}
+model User {
+ id String @id @default(cuid())
+ name String
+ email String @unique
+ phone String @unique
+ password String
+ role String
+ householdId String? @unique
+ household Household? @relation(fields:[householdId], references:[id])
+ verified Boolean @default(false)
+ mustChange Boolean @default(true)
+ active Boolean @default(true)
+ sessions Session[]
+ otps Otp[]
+ createdAt DateTime @default(now())
+}
+model Session {
+ id String @id
+ userId String
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ expiresAt DateTime
+ @@index([expiresAt])
+}
+model Otp {
+ id String @id @default(cuid())
+ userId String
+ user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+ hash String
+ email String @default("")
+ purpose String
+ attempts Int @default(0)
+ used Boolean @default(false)
+ expiresAt DateTime
+ createdAt DateTime @default(now())
+ @@index([userId,purpose,createdAt])
+}
+model Household {
+ id String @id @default(cuid())
+ code String @unique
+ name String
+ phone String
+ users User[]
+ occupancies Occupancy[]
+ counts Headcount[]
+ vehicles Vehicle[]
+ charges Charge[]
+ payments Payment[]
+ ledger Ledger[]
+ difficult Boolean @default(false)
+ note String @default("")
+ createdAt DateTime @default(now())
+}
+model Apartment {
+ id String @id @default(cuid())
+ code String @unique
+ floor Int
+ area Decimal @db.Decimal(12,4)
+ occupancies Occupancy[]
+ readings Reading[]
+ charges Charge[]
+}
+model Occupancy {
+ id String @id @default(cuid())
+ householdId String
+ household Household @relation(fields:[householdId],references:[id])
+ apartmentId String
+ apartment Apartment @relation(fields:[apartmentId],references:[id])
+ start DateTime @db.Date
+ end DateTime? @db.Date
+ @@index([apartmentId,start,end])
+ @@index([householdId,start,end])
+}
+model Headcount {
+ id String @id @default(cuid())
+ householdId String
+ household Household @relation(fields:[householdId],references:[id])
+ count Int
+ effective DateTime @db.Date
+ @@unique([householdId,effective])
+}
+model Vehicle {
+ id String @id @default(cuid())
+ householdId String
+ household Household @relation(fields:[householdId],references:[id])
+ plate String @unique
+ type String
+ start DateTime @db.Date
+ end DateTime? @db.Date
+}
+model Fee {
+ id String @id @default(cuid())
+ name String
+ kind String
+ rates Rate[]
+ apartmentIds String[] @default([])
+ active Boolean @default(true)
+ charges Charge[]
+}
+model Rate {
+ id String @id @default(cuid())
+ feeId String
+ fee Fee @relation(fields:[feeId],references:[id])
+ amount Decimal @db.Decimal(18,4)
+ effective DateTime @db.Date
+ vehicleType String @default("")
+ @@unique([feeId,effective,vehicleType])
+}
+model Reading {
+ id String @id @default(cuid())
+ apartmentId String
+ apartment Apartment @relation(fields:[apartmentId],references:[id])
+ kind String
+ date DateTime @db.Date
+ value Decimal @db.Decimal(18,4)
+ @@unique([apartmentId,kind,date])
+}
+model Period {
+ id String @id @default(cuid())
+ month String @unique
+ due DateTime @db.Date
+ charges Charge[]
+ createdAt DateTime @default(now())
+}
+model Campaign {
+ id String @id @default(cuid())
+ name String
+ description String
+ start DateTime @db.Date
+ end DateTime @db.Date
+ payments Payment[]
+}
+model Charge {
+ id String @id @default(cuid())
+ key String @unique
+ householdId String
+ household Household @relation(fields:[householdId],references:[id])
+ apartmentId String
+ apartment Apartment @relation(fields:[apartmentId],references:[id])
+ feeId String
+ fee Fee @relation(fields:[feeId],references:[id])
+ periodId String
+ period Period @relation(fields:[periodId],references:[id])
+ name String
+ amount Int
+ outstanding Int
+ writtenOff Int @default(0)
+ status String @default("DRAFT")
+ start DateTime @db.Date
+ end DateTime @db.Date
+ due DateTime @db.Date
+ snapshot Json
+ ledger Ledger[]
+ payments Payment[]
+ createdAt DateTime @default(now())
+ @@index([householdId,status,due])
+}
+model Payment {
+ id String @id @default(cuid())
+ key String @unique
+ householdId String
+ household Household @relation(fields:[householdId],references:[id])
+ chargeId String?
+ charge Charge? @relation(fields:[chargeId],references:[id])
+ campaignId String?
+ campaign Campaign? @relation(fields:[campaignId],references:[id])
+ amount Int
+ refunded Int @default(0)
+ method String
+ status String @default("PENDING")
+ reference String @default("")
+ providerDate String @default("")
+ payer String
+ receivedAt DateTime @default(now())
+ ledger Ledger[]
+ createdAt DateTime @default(now())
+ @@index([householdId,status,receivedAt])
+}
+model Ledger {
+ id String @id @default(cuid())
+ householdId String
+ household Household @relation(fields:[householdId],references:[id])
+ chargeId String?
+ charge Charge? @relation(fields:[chargeId],references:[id])
+ paymentId String?
+ payment Payment? @relation(fields:[paymentId],references:[id])
+ type String
+ amount Int
+ creditDelta Int @default(0)
+ sourceId String?
+ reason String
+ actorId String
+ createdAt DateTime @default(now())
+ @@index([householdId,createdAt])
+ @@index([chargeId])
+}
+model Notification {
+ id String @id @default(cuid())
+ key String @unique
+ householdId String?
+ recipient String
+ channel String
+ kind String
+ subject String
+ body String
+ status String @default("QUEUED")
+ attempts Int @default(0)
+ nextAt DateTime @default(now())
+ error String @default("")
+ createdAt DateTime @default(now())
+ sentAt DateTime?
+ @@index([status,nextAt])
+}
+model Audit {
+ id String @id @default(cuid())
+ actorId String
+ action String
+ target String
+ detail Json
+ createdAt DateTime @default(now())
+ @@index([createdAt])
+}
+model Nonce {
+ id String @id
+ expiresAt DateTime
+}

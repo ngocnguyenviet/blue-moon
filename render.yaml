@@ -1,0 +1,30 @@
+services:
+  - type: web
+    name: bluemoon-demo
+    runtime: node
+    plan: free
+    region: singapore
+    buildCommand: npm ci --include=dev && npm run build
+    startCommand: npm run db:deploy && npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_VERSION
+        value: "24"
+      - key: NODE_ENV
+        value: production
+      - key: DEMO_MODE
+        value: "false"
+      - key: DATABASE_URL
+        sync: false
+      - key: APP_URL
+        sync: false
+      - key: BRIDGE_SECRET
+        generateValue: true
+      - key: APPS_SCRIPT_URL
+        value: ""
+      - key: EMAIL_ALLOWLIST
+        value: ""
+      - key: VNPAY_TMN_CODE
+        value: ""
+      - key: VNPAY_HASH_SECRET
+        value: ""
